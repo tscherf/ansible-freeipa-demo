@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ansible FreeIPA</title>
+    <meta charset="utf-8">
+    <style>
+      @import url("stylesheet-default.css");
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+
+class: center, middle
+
+# Ansible FreeIPA
+
+Thorsten Scherf<br> 
+Product Operations Engineer<br> 
+Identity Management & Platform Security<br><br>
+Red Hat
+
+---
+
+.left-column[
+## About me
+]
+
+.right-column[
+- 20+ years @ Red Hat
+- Working in Product Operation for Identity Management & Platform Security
+- Focused on delivering data-driven recommendations that connect
+customer opportunities to the Engineering backlog
+]
+
+---
+
+.left-column[
+  ## FreeIPA
+]
+
+.right-column[
+
+- Think Active Directory for Linux
+
+- Identity Store
+  - LDAP
+  - Users, Groups, Hosts, Services
+
+- Authentication
+  - Kerberos
+  - Passwords, 2FA (Smart Cards, OTP soft/hardtokens, Passkeys)
+  - Client/Server X.509 certificates (PKI)
+  - Single Sign On (SSO)
+
+- Authorization
+  - Host access rules
+  - Privileged operations
+  - Kerberos Authentication Indicator
+  - FreeIPA itself 
+      - RBAC - user roles and admin delegations
+
+- Security-related service management
+  - SUDO, SELinux, SSH-Keys
+  - Secrets (passwords, keytabs, certificates)
+]
+
+---
+
+.left-column[
+## Project goals
+]
+
+.right-column[
+
+- Ansible FreeIPA
+  - Provides Ansible roles and modules for server, client and replica
+  - Allow automation of FreeIPA installations and configuration
+  - Same results using normal FreeIPA installers or ansible-freeipa
+  - Can easily fix broken client installations
+]
+
+---
+
+.left-column[
+## Server setup
+]
+
+.right-column[
+
+- Directory server  (dirsrv)
+- Kerberos server (krb5kdc, kadmin)
+- Certificate server (pki-tomcatd)
+- HTTP server (httpd)
+- DNS server (named)
+- KRA (Key Recovery Authority) server
+- Time synchronization (ntpd)
+- OTPD configuration (ipa-otpd)
+- Active Directory trust configuration (smb, winbind)
+- Identity Provider configuration 
+]
+
+---
+
+.left-column[
+## Client setup
+]
+
+.right-column[
+- Domain discovery and validation of parameters
+- Time synchronization (ntp, chrony)
+- IPA enrollment (Creation of host entry and keytab)
+- SSSD, PAM, NSS configuration
+- Kerberos client configuration
+- PKI configuration
+- DNS configuration
+]
+
+---
+
+.left-column[
+## Active Directory integration
+]
+
+.right-column[
+- AD / FreeIPA both provide Kerberos realm
+  - Cross-Forest Trust
+      - Indivual domains can be excluded
+  - External Trust 
+      - Single domain trust
+]
+
+---
+
+.left-column[
+## External IdP integration
+]
+
+.right-column[
+- FreeIPA can be integrated with external Identity Providers (IdP)
+      - GitHub
+      - Entra ID
+      - Keycloak 
+      - Other OAuth based IdPs that support Device Authorization Grant (rfc8628)
+]
+
+---
+
+.left-column[
+## Inventory 1/2
+]
+
+.right-column[
+```
+all:
+  children:
+    ipacluster:
+      children:
+        ipaserver:
+        ipareplicas:
+        ipaclients:
+      vars:
+        ipaserver_domain: example.com
+        ipaserver_realm: EXAMPLE.COM
+        ipadm_password: "{{ ipa_dm_password }}"
+        ipaadmin_password: "{{ ipa_admin_password }}"
+        ansible_user: root
+    # IPA First Server (CA Renewal)
+    ipaserver:
+      hosts:
+        server.example.com:
+      vars:
+        ipaserver_setup_kra: true
+        ipaserver_setup_dns: true
+        ipaserver_forwarders: 1.1.1.1
+        ipaserver_auto_reverse: true
+    # IPA Replica Servers
+    ipareplicas:
+      hosts:
+        replica.example.com:
+      vars:
+        ipasssd_enable_dns_updates: true
+        ipaclient_configure_dns_resolver: true
+        ipaclient_dns_servers:
+          - 10.6.120.82
+```
+]
+
+---
+
+.left-column[
+## Inventory 2/2
+]
+
+.right-column[
+```
+    # IPA Client hosts
+    ipaclients:
+      hosts:
+        client.example.com:
+      vars:
+        ipaclient_mkhomedir: true
+        ipasssd_enable_dns_updates: true
+        ipaclient_configure_dns_resolver: true
+        ipaclient_dns_servers:
+          - 10.6.120.82
+```
+]
+
+---
+
+.left-column[
+## Cluster install playbook
+]
+
+.right-column[
+```
+- name: Install IPA servers
+  hosts: ipaserver
+  become: true
+
+  roles:
+  - role: freeipa.ansible_freeipa.ipaserver
+    state: present
+
+- name: Install IPA replicas
+  hosts: ipareplicas
+  become: true
+
+  roles:
+  - role: freeipa.ansible_freeipa.ipareplica
+    state: present
+
+- name: Install IPA clients
+  hosts: ipaclients
+  become: true
+
+  roles:
+  - role: freeipa.ansible_freeipa.ipaclient
+    state: present
+```
+]
+
+---
+
+.left-column[
+## GitHub IdP playbook
+]
+.right-column[
+```
+- name: Configure external IdP
+  hosts: ipaserver
+  become: false
+  gather_facts: false
+
+  tasks:
+  - name: Ensure a reference to github external provider is available
+    freeipa.ansible_freeipa.ipaidp:
+      ipaadmin_password: "{{ ipa_admin_password }}"
+      name: github_idp
+      provider: github
+      client_id: Iv23li54JM3232gf0KH2B
+      secret: 6df2adf323ece7329339dbf3a7573e2f48ab0c22ed
+      idp_user_id: 'id'
+```
+]
+
+---
+
+.left-column[
+## IdP user playbook
+]
+
+.right-column[
+```
+- name: Ensure FreeIPA user can use Github as an external IdP
+  hosts: ipaserver
+  become: false
+  gather_facts: false
+  vars:
+    github_login: tscherf
+
+  tasks:
+  - name: Retrieve Gitbhub user id
+    ansible.builtin.uri:
+      url: "https://api.github.com/users/{{ github_login }}"
+      method: GET
+      headers:
+        Accept: "application/vnd.github.v3+json"
+    register: user_data
+
+  - name: Ensure user exists with IdP configuration
+    freeipa.ansible_freeipa.ipauser:
+      ipaadmin_password: "{{ ipa_admin_password }}"
+      name: tscherf
+      first: Thorsten
+      last: Scherf
+      userauthtype: idp
+      idp: github_idp
+      idp_user_id: "{{ user_data.json.id }}"
+```
+]
+
+---
+
+.left-column[
+## Demo
+]
+
+.right-column[
+]
+
+
+
+---
+
+</textarea>
+    <script src="remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
+
