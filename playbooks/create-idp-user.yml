@@ -4,7 +4,7 @@
   become: false
   gather_facts: false
   vars:
-    github_login: tscherf
+    github_login: my-github-user
 
   tasks:
   - name: Retrieve Gitbhub user id
@@ -18,9 +18,9 @@
   - name: Ensure user exists with IdP configuration
     freeipa.ansible_freeipa.ipauser:
       ipaadmin_password: "{{ ipa_admin_password }}"
-      name: tscherf
-      first: Thorsten
-      last: Scherf
+      name: tuser
+      first: Test
+      last: User
       userauthtype: idp
       idp: github_idp
       idp_user_id: "{{ user_data.json.id }}"
