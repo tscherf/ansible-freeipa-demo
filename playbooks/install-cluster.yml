@@ -1,4 +1,9 @@
 ---
+- name: Gather facts from FreeIPA servers
+  hosts: ipaserver
+  gather_facts: yes
+  tasks: []
+
 - name: Install IPA servers
   hosts: ipaserver
   become: true

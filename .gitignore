@@ -1,5 +1,4 @@
 Pipfile
-secrets/secret
 other/
 *.json
 

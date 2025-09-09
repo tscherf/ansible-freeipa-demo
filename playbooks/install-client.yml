@@ -1,4 +1,9 @@
 ---
+- name: Gather facts from FreeIPA servers
+  hosts: ipaserver
+  gather_facts: yes
+  tasks: []
+
 - name: Playbook to configure IPA clients with username/password
   hosts: ipaclients
   become: true

@@ -21,6 +21,7 @@ all:
         ipaserver_setup_dns: true
         ipaserver_forwarders: 1.1.1.1
         ipaserver_auto_reverse: true
+        ipaserver_allow_zone_overlap: true
     # IPA Replica Servers
     ipareplicas:
       hosts:
@@ -29,7 +30,7 @@ all:
         ipasssd_enable_dns_updates: true
         ipaclient_configure_dns_resolver: true
         ipaclient_dns_servers:
-          - 10.6.120.82
+          - "{{ hostvars[groups['ipaserver'][0]]['ansible_default_ipv4']['address'] }}"
     # IPA Client hosts
     ipaclients:
       hosts:
@@ -39,4 +40,4 @@ all:
         ipasssd_enable_dns_updates: true
         ipaclient_configure_dns_resolver: true
         ipaclient_dns_servers:
-          - 10.6.120.82
+          - "{{ hostvars[groups['ipaserver'][0]]['ansible_default_ipv4']['address'] }}"
