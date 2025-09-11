@@ -11,5 +11,6 @@
       name: github_idp
       provider: github
       client_id: Iv23li54JMwPcgf0KH2B
+      # No need to check. The secret is not valid anymore. ;) 
       secret: 6df2adf93ece7e9339dbf3a7573e2f48ab0c22ed
       idp_user_id: 'id'
